@@ -490,6 +490,7 @@ public class OverlayService extends Service implements Pad.View {
         handle.setAlpha(0.85f);
         int s = px(46);
         handleLp = lp(s, s, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                 | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         placeHandle();
         handle.setOnTouchListener(new View.OnTouchListener() {

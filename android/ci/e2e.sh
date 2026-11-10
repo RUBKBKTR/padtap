@@ -41,9 +41,12 @@ cat pad.log
 sleep 1
 adb exec-out screencap -p > shot6-after.png
 # open the menu panel via the floating icon (right edge, 40% height)
-adb shell input tap $((W - 40)) $((H * 4 / 10))
+adb shell input tap $((W - 30)) $((H * 4 / 10))
 sleep 2
 adb exec-out screencap -p > shot7-panel.png
+python3 android/ci/ui.py 'ボタン配置を設定' --optional
+sleep 2
+adb exec-out screencap -p > shot8-setup-from-menu.png
 adb logcat -d -s PadTapProbe:I > e2e-probe.log
 adb logcat -d -s AndroidRuntime:E PadTapSvc:* PadTapInj:* >> e2e.log
 cat e2e-probe.log
