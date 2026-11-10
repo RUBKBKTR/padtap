@@ -1,0 +1,46 @@
+plugins { id 'com.android.application' }
+
+def runNo = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+
+android {
+    namespace 'io.padtap'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'io.padtap'
+        minSdk 26
+        targetSdk 33
+        versionCode runNo
+        versionName "1.0.${runNo}"
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
+    }
+    signingConfigs {
+        release {
+            storeFile file('../padtap.jks')
+            storePassword 'padtap'
+            keyAlias 'padtap'
+            keyPassword 'padtap'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    externalNativeBuild { cmake { path 'src/main/cpp/CMakeLists.txt' } }
+    buildFeatures { aidl true; buildConfig true }
+    packaging { jniLibs { useLegacyPackaging true } }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { checkReleaseBuilds false; abortOnError false }
+}
+
+dependencies {
+    def shizuku = '13.1.5'
+    implementation "dev.rikka.shizuku:api:$shizuku"
+    implementation "dev.rikka.shizuku:provider:$shizuku"
+    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:4.3'
+}
