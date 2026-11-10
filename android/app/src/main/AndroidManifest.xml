@@ -27,6 +27,12 @@
             </intent-filter>
         </activity>
 
+        <!-- CI test target only -->
+        <activity
+            android:name=".ProbeActivity"
+            android:exported="true"
+            android:excludeFromRecents="true" />
+
         <service
             android:name=".OverlayService"
             android:exported="false" />

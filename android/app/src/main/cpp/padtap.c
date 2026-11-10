@@ -87,3 +87,49 @@ JNIEXPORT jint JNICALL Java_io_padtap_Native_read(JNIEnv *env, jclass cls, jint 
     (*env)->SetIntArrayRegion(env, out, 0, cnt * 3, tmp);
     return cnt;
 }
+
+// ---------------- test helpers (virtual gamepad via uinput; used by SelfTest only) ----------------
+#include <linux/uinput.h>
+
+JNIEXPORT jint JNICALL Java_io_padtap_Native_uinputCreate(JNIEnv *env, jclass cls) {
+    int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+    if (fd < 0) return -errno;
+    ioctl(fd, UI_SET_EVBIT, EV_KEY);
+    ioctl(fd, UI_SET_EVBIT, EV_ABS);
+    ioctl(fd, UI_SET_EVBIT, EV_SYN);
+    int keys[] = {BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST, BTN_TL, BTN_TR, BTN_SELECT, BTN_START,
+                  BTN_MODE, BTN_THUMBL, BTN_THUMBR};
+    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) ioctl(fd, UI_SET_KEYBIT, keys[i]);
+    int axes[] = {ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_HAT0X, ABS_HAT0Y};
+    for (unsigned i = 0; i < sizeof(axes) / sizeof(axes[0]); i++) ioctl(fd, UI_SET_ABSBIT, axes[i]);
+    struct uinput_user_dev u;
+    memset(&u, 0, sizeof u);
+    strcpy(u.name, "PadTap Test Pad");
+    u.id.bustype = BUS_USB;
+    u.id.vendor = 0x1234;
+    u.id.product = 0x5678;
+    u.id.version = 1;
+    for (int i = 0; i < 4; i++) {
+        u.absmin[axes[i]] = -32768;
+        u.absmax[axes[i]] = 32767;
+    }
+    u.absmin[ABS_HAT0X] = -1; u.absmax[ABS_HAT0X] = 1;
+    u.absmin[ABS_HAT0Y] = -1; u.absmax[ABS_HAT0Y] = 1;
+    if (write(fd, &u, sizeof u) != (ssize_t)sizeof u) { int e = errno; close(fd); return -e; }
+    if (ioctl(fd, UI_DEV_CREATE) < 0) { int e = errno; close(fd); return -e; }
+    return fd;
+}
+
+JNIEXPORT jint JNICALL Java_io_padtap_Native_uinputEmit(JNIEnv *env, jclass cls, jint fd, jint type, jint code, jint value) {
+    struct input_event ev;
+    memset(&ev, 0, sizeof ev);
+    ev.type = (unsigned short)type;
+    ev.code = (unsigned short)code;
+    ev.value = value;
+    return write(fd, &ev, sizeof ev) == (ssize_t)sizeof ev ? 0 : -errno;
+}
+
+JNIEXPORT void JNICALL Java_io_padtap_Native_uinputDestroy(JNIEnv *env, jclass cls, jint fd) {
+    ioctl(fd, UI_DEV_DESTROY);
+    close(fd);
+}

@@ -25,32 +25,48 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build APK
+        id: build
         working-directory: android
         shell: bash
         run: |
           set -o pipefail
           gradle assembleRelease --stacktrace --no-daemon 2>&1 | tee ../build.log
+          cp app/build/outputs/apk/release/app-release.apk ../padtap.apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Emulator self-test
+        id: test
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash android/ci/selftest.sh
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk padtap.apk
           gh release create "apk-${{ github.run_number }}" padtap.apk \
             --title "PadTap Android (build ${{ github.run_number }})" \
             --notes "Shizuku版 PadTap。padtap.apk をダウンロードしてインストールしてね。" \
             --latest
 
-      - name: Save build log to ci-log branch
+      - name: Upload logs
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          mkdir -p /tmp/ci-log
-          cp build.log /tmp/ci-log/ 2>/dev/null || echo "no log" > /tmp/ci-log/build.log
-          echo "${{ job.status }} run=${{ github.run_number }} sha=${{ github.sha }}" > /tmp/ci-log/status.txt
-          cd /tmp/ci-log
-          git init -q
-          git checkout -q -b ci-log
-          git add .
-          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "build log ${{ github.run_number }}"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-log
+          echo "job=${{ job.status }} build=${{ steps.build.outcome }} test=${{ steps.test.outcome }} run=${{ github.run_number }} sha=${{ github.sha }}" > status.txt
+          touch build.log selftest.log probe.log test-status.txt
+          gh release view ci-logs >/dev/null 2>&1 || gh release create ci-logs --prerelease --latest=false --title "CI logs" --notes "build/test logs"
+          gh release upload ci-logs status.txt build.log selftest.log probe.log test-status.txt --clobber

@@ -13,4 +13,20 @@ final class Native {
     static native String probe(int fd);
 
     static native int read(int fd, int[] out, int timeoutMs);
+
+    // test helpers (SelfTest)
+    static native int uinputCreate();
+
+    static native int uinputEmit(int fd, int type, int code, int value);
+
+    static native void uinputDestroy(int fd);
+
+    static boolean loaded() {
+        try {
+            open("/nonexistent");
+            return true;
+        } catch (UnsatisfiedLinkError e) {
+            return false;
+        }
+    }
 }

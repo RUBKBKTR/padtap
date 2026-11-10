@@ -52,8 +52,8 @@ public class PadService extends IPadService.Stub {
         } catch (Throwable ignored) {
         }
         inj = new Injector();
-        boolean ok = false;
-        try {
+        boolean ok = Native.loaded();
+        if (!ok) try {
             System.loadLibrary("padtap");
             ok = true;
         } catch (Throwable t) {
