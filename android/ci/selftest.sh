@@ -1,5 +1,7 @@
 #!/bin/bash
-# Runs inside the emulator job. Produces selftest.log, probe.log, test-status.txt
+# Runs inside the emulator job. Produces ci-test.log, selftest.log, probe.log, test-status.txt
+exec > >(tee ci-test.log) 2>&1
+set -x
 adb install -r padtap.apk
 APK=$(adb shell pm path io.padtap | head -1 | sed 's/package://' | tr -d '\r')
 LIB="$(dirname "$APK")/lib/x86_64/libpadtap.so"

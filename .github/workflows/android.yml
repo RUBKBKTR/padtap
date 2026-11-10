@@ -67,6 +67,8 @@ jobs:
         shell: bash
         run: |
           echo "job=${{ job.status }} build=${{ steps.build.outcome }} test=${{ steps.test.outcome }} run=${{ github.run_number }} sha=${{ github.sha }}" > status.txt
-          touch build.log selftest.log probe.log test-status.txt
           gh release view ci-logs >/dev/null 2>&1 || gh release create ci-logs --prerelease --latest=false --title "CI logs" --notes "build/test logs"
-          gh release upload ci-logs status.txt build.log selftest.log probe.log test-status.txt --clobber
+          for f in status.txt build.log ci-test.log selftest.log probe.log test-status.txt; do
+            [ -s "$f" ] || echo "(empty)" > "$f"
+            gh release upload ci-logs "$f" --clobber || true
+          done
