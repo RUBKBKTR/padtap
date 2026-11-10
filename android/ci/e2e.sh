@@ -9,6 +9,9 @@ adb shell "$(dirname "$SZ")/lib/x86_64/libshizuku.so"
 sleep 3
 adb shell appops set io.padtap SYSTEM_ALERT_WINDOW allow
 adb shell pm grant io.padtap android.permission.POST_NOTIFICATIONS
+adb shell wm size 720x1440
+adb shell wm density 300
+sleep 2
 SIZE=$(adb shell wm size | tail -1 | sed 's/.*: //' | tr -d '\r'); W=${SIZE%x*}; H=${SIZE#*x}
 
 adb shell am start -W -n io.padtap/.MainActivity
@@ -17,7 +20,7 @@ adb exec-out screencap -p > shot1-main.png
 python3 android/ci/ui.py '許可する' --optional
 sleep 3
 adb exec-out screencap -p > shot2-shizuku-dialog.png
-python3 android/ci/ui.py '(?i)allow|許可' --optional
+python3 android/ci/ui.py '^(Allow all the time|常に許可)$' --optional
 sleep 3
 adb exec-out screencap -p > shot3-main-ready.png
 python3 android/ci/ui.py '開始する'
