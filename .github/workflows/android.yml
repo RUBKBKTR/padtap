@@ -51,6 +51,25 @@ jobs:
           disable-animations: true
           script: bash android/ci/selftest.sh
 
+      - name: Download Shizuku
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download -R RikkaApps/Shizuku --pattern '*.apk' -O shizuku.apk
+          ls -l shizuku.apk
+
+      - name: Emulator E2E (Shizuku + overlay)
+        id: e2e
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash android/ci/e2e.sh
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,9 +85,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          echo "job=${{ job.status }} build=${{ steps.build.outcome }} test=${{ steps.test.outcome }} run=${{ github.run_number }} sha=${{ github.sha }}" > status.txt
+          echo "job=${{ job.status }} build=${{ steps.build.outcome }} test=${{ steps.test.outcome }} e2e=${{ steps.e2e.outcome }} run=${{ github.run_number }} sha=${{ github.sha }}" > status.txt
           gh release view ci-logs >/dev/null 2>&1 || gh release create ci-logs --prerelease --latest=false --title "CI logs" --notes "build/test logs"
-          for f in status.txt build.log ci-test.log selftest.log probe.log test-status.txt; do
+          for f in status.txt build.log ci-test.log selftest.log probe.log test-status.txt e2e.log e2e-probe.log pad.log shot*.png; do
             [ -s "$f" ] || echo "(empty)" > "$f"
             gh release upload ci-logs "$f" --clobber || true
           done

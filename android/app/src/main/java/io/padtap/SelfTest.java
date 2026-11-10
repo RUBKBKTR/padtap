@@ -27,8 +27,53 @@ public final class SelfTest {
         Thread.sleep(250);
     }
 
+    /** E2E mode: only plays a scripted controller timeline (the real app does the rest). */
+    private static void padTimeline() throws Exception {
+        int u = Native.uinputCreate();
+        System.out.println("pad fd=" + u);
+        Thread.sleep(4000);
+        System.out.println("T A-hold+drag");
+        emit(u, 1, 0x130, 1);
+        emit(u, 3, 0, 32767);
+        Thread.sleep(500);
+        emit(u, 3, 0, 0);
+        emit(u, 1, 0x130, 0);
+        Thread.sleep(800);
+        System.out.println("T setup-on");
+        emit(u, 1, 0x13a, 1);
+        emit(u, 1, 0x13b, 1);
+        emit(u, 1, 0x13b, 0);
+        emit(u, 1, 0x13a, 0);
+        Thread.sleep(800);
+        System.out.println("T select-X");
+        emit(u, 1, 0x133, 1);
+        emit(u, 1, 0x133, 0);
+        Thread.sleep(2500); // screenshot window
+        System.out.println("T place-X");
+        emit(u, 1, 0x133, 1);
+        emit(u, 1, 0x133, 0);
+        Thread.sleep(800);
+        System.out.println("T setup-off");
+        emit(u, 1, 0x13a, 1);
+        emit(u, 1, 0x13b, 1);
+        emit(u, 1, 0x13b, 0);
+        emit(u, 1, 0x13a, 0);
+        Thread.sleep(800);
+        System.out.println("T tap-X");
+        emit(u, 1, 0x133, 1);
+        Thread.sleep(150);
+        emit(u, 1, 0x133, 0);
+        Thread.sleep(1500);
+        Native.uinputDestroy(u);
+        System.out.println("T done");
+    }
+
     public static void main(String[] args) throws Exception {
         System.load(System.getProperty("padtap.lib"));
+        if ("pad".equals(System.getProperty("padtap.mode"))) {
+            padTimeline();
+            System.exit(0);
+        }
         String[] tap = System.getProperty("padtap.tap", "500,800").split(",");
         float cx = Float.parseFloat(tap[0]), cy = Float.parseFloat(tap[1]);
         System.out.println("uid=" + android.os.Process.myUid());
