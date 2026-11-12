@@ -4,7 +4,7 @@ Bluetoothコントローラーで、Android の画面を**タップ操作**す�
 
 ## 📱 アプリ版（Shizuku）
 
-**[APKをダウンロード](https://github.com/riubekubecktor/padtap/releases/latest/download/padtap.apk)**
+**[APKをダウンロード](https://github.com/RUBKBKTR/padtap/releases/latest/download/padtap.apk)**
 
 - どのアプリ・ブラウザでも動く。本物のマルチタッチを送る
 - コントローラーを独占するので、Bでブラウザが戻ったりしない
@@ -25,7 +25,7 @@ Bluetoothコントローラーで、Android の画面を**タップ操作**す�
 Chrome でブックマークを作って、URL にこれを貼る：
 
 ```
-javascript:void((d=>{if(window.__padtap)return __padtap.open();const s=d.createElement('script');s.src='https://cdn.jsdelivr.net/gh/riubekubecktor/padtap@main/padtap.min.js';s.onerror=()=>alert('PadTap: load failed');d.documentElement.appendChild(s)})(document))
+javascript:void((d=>{if(window.__padtap)return __padtap.open();const s=d.createElement('script');s.src='https://cdn.jsdelivr.net/gh/RUBKBKTR/padtap@main/padtap.min.js';s.onerror=()=>alert('PadTap: load failed');d.documentElement.appendChild(s)})(document))
 ```
 
 ゲームのページでアドレスバーにブックマーク名を入力して、☆付きの候補をタップすると起動する。
