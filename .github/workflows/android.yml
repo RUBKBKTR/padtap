@@ -91,3 +91,19 @@ jobs:
             [ -s "$f" ] || echo "(empty)" > "$f"
             gh release upload ci-logs "$f" --clobber || true
           done
+
+      - name: Push logs to ci-log branch
+        if: always()
+        shell: bash
+        run: |
+          set -x
+          mkdir -p /tmp/logs
+          cp status.txt build.log ci-test.log selftest.log probe.log test-status.txt e2e.log e2e-probe.log pad.log e2e2-probe.log pad2.log shot*.png /tmp/logs/ 2>/dev/null || true
+          git clone -q --depth 1 "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" /tmp/lr
+          cd /tmp/lr
+          git checkout -q --orphan ci-log
+          git rm -rfq . || true
+          cp /tmp/logs/* .
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "logs run ${{ github.run_number }}"
+          git push -f origin ci-log 2>&1 | tail -5
