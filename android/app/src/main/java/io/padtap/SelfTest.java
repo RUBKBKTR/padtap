@@ -68,10 +68,54 @@ public final class SelfTest {
         System.out.println("T done");
     }
 
+    /** E2E mode 2: sticks (virtual stick / swipe), turbo, and setup editor screenshots. */
+    private static void padTimeline2() throws Exception {
+        int u = Native.uinputCreate();
+        System.out.println("pad2 fd=" + u);
+        Thread.sleep(4000);
+        System.out.println("T L-joy");
+        emit(u, 3, 0, 32767);
+        Thread.sleep(600);
+        emit(u, 3, 0, 0);
+        Thread.sleep(500);
+        System.out.println("T R-swipe");
+        emit(u, 3, 4, -32768);
+        Thread.sleep(800);
+        emit(u, 3, 4, 0);
+        Thread.sleep(500);
+        System.out.println("T A-turbo");
+        emit(u, 1, 0x130, 1);
+        Thread.sleep(550);
+        emit(u, 1, 0x130, 0);
+        Thread.sleep(600);
+        System.out.println("T setup-on");
+        emit(u, 1, 0x13a, 1);
+        emit(u, 1, 0x13b, 1);
+        emit(u, 1, 0x13b, 0);
+        emit(u, 1, 0x13a, 0);
+        Thread.sleep(2500); // screenshot: zones
+        System.out.println("T select-A");
+        emit(u, 1, 0x130, 1);
+        emit(u, 1, 0x130, 0);
+        Thread.sleep(2500); // screenshot: button editor
+        System.out.println("T setup-off");
+        emit(u, 1, 0x13a, 1);
+        emit(u, 1, 0x13b, 1);
+        emit(u, 1, 0x13b, 0);
+        emit(u, 1, 0x13a, 0);
+        Thread.sleep(800);
+        Native.uinputDestroy(u);
+        System.out.println("T done");
+    }
+
     public static void main(String[] args) throws Exception {
         System.load(System.getProperty("padtap.lib"));
         if ("pad".equals(System.getProperty("padtap.mode"))) {
             padTimeline();
+            System.exit(0);
+        }
+        if ("pad2".equals(System.getProperty("padtap.mode"))) {
+            padTimeline2();
             System.exit(0);
         }
         String[] tap = System.getProperty("padtap.tap", "500,800").split(",");

@@ -10,11 +10,7 @@ import android.os.Looper;
 import android.os.RemoteException;
 import android.view.Choreographer;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import rikka.shizuku.Shizuku;
@@ -58,28 +54,10 @@ final class Pad {
     private volatile int[] btns = new int[0];
     private volatile float[] axes = new float[4];
 
-    // surface (overlay layer) geometry
-    int w = 1080, h = 2400;
-    private int offX, offY;
-    float curX = -1, curY = -1;
-
-    // loop state
-    private boolean running;
-    private long lastNs;
-    private Set<Integer> prev = new HashSet<>();
-    private float dpHold;
-    float idle = 99;
-    private final Map<Integer, Integer> active = new HashMap<>(); // button -> pointer id
-    final Set<Integer> cursorHeld = new HashSet<>(); // pointer ids following the cursor
-    private boolean lastVisible;
-
-    // setup mode
-    boolean setup;
-    int sel = -1;
-
     private Pad(Context c) {
         ctx = c;
         cfg = new Config(c);
+        engine = new Engine(touchOut, hooks, cfg.p());
         try {
             Shizuku.addBinderReceivedListenerSticky(this::fireWatchers);
             Shizuku.addBinderDeadListener(() -> main.post(() -> {
@@ -254,61 +232,105 @@ final class Pad {
         }
     }
 
-    // ---------------- touches ----------------
+    // ---------------- touches / engine ----------------
+
+    private int offX, offY;
+    final Engine engine;
+    private boolean running;
+    private long lastNs;
+    private final boolean[] lastVisible = new boolean[2];
+
+    // setup mode
+    boolean setup;
+    int sel = -1;       // selected button code
+    int selStick = -1;  // selected stick (0/1)
+
+    private final Engine.Out touchOut = new Engine.Out() {
+        @Override
+        public void down(int id, float x, float y) {
+            IPadService s = svc;
+            if (s == null) return;
+            try {
+                s.touchDown(id, x + offX, y + offY);
+            } catch (RemoteException ignored) {
+            }
+        }
+
+        @Override
+        public void move(int id, float x, float y) {
+            IPadService s = svc;
+            if (s == null) return;
+            try {
+                s.touchMove(id, x + offX, y + offY);
+            } catch (RemoteException ignored) {
+            }
+        }
+
+        @Override
+        public void up(int id) {
+            IPadService s = svc;
+            if (s == null) return;
+            try {
+                s.touchUp(id);
+            } catch (RemoteException ignored) {
+            }
+        }
+
+        @Override
+        public void ripple(float x, float y) {
+            if (view != null) view.onRipple(x, y);
+        }
+
+        @Override
+        public void hit(int code) {
+            if (view != null) view.onHit(code);
+        }
+    };
+
+    private final Engine.Hooks hooks = new Engine.Hooks() {
+        @Override
+        public void onCombo() {
+            setSetup(!setup);
+        }
+
+        @Override
+        public void onSetupPress(int code) {
+            if (sel == code) {
+                placeAtCursor(code);
+                return;
+            }
+            sel = code;
+            selStick = -1;
+            if (view != null) view.onSetup();
+        }
+    };
 
     void setSurface(int width, int height, int ox, int oy) {
         if (width <= 0 || height <= 0) return;
-        w = width;
-        h = height;
         offX = ox;
         offY = oy;
-        if (curX < 0) {
-            curX = w / 2f;
-            curY = h / 2f;
-        }
-        curX = Math.min(curX, w - 1);
-        curY = Math.min(curY, h - 1);
+        engine.setSize(width, height);
     }
 
-    private void tDown(int id, float x, float y) {
-        IPadService s = svc;
-        if (s == null) return;
-        try {
-            s.touchDown(id, x + offX, y + offY);
-        } catch (RemoteException ignored) {
-        }
+    int w() {
+        return engine.w;
     }
 
-    private void tMove(int id, float x, float y) {
-        IPadService s = svc;
-        if (s == null) return;
-        try {
-            s.touchMove(id, x + offX, y + offY);
-        } catch (RemoteException ignored) {
-        }
-    }
-
-    private void tUp(int id) {
-        IPadService s = svc;
-        if (s == null) return;
-        try {
-            s.touchUp(id);
-        } catch (RemoteException ignored) {
-        }
+    int h() {
+        return engine.h;
     }
 
     void releaseAll() {
-        for (int pid : active.values()) tUp(pid);
-        active.clear();
-        cursorHeld.clear();
+        engine.releaseAll();
     }
 
-    private int allocPointer() {
-        for (int i = 0; i < 10; i++) if (!active.containsValue(i)) return i;
-        return 9;
+    /** Call after editing the profile / settings. */
+    void changed() {
+        engine.prof = cfg.p();
+        engine.releaseAll();
+        cfg.save();
+        if (view != null) view.onSetup();
     }
-
-    // ---------------- loop ----------------
 
     private final Choreographer.FrameCallback fc = this::frame;
 
@@ -316,22 +338,17 @@ final class Pad {
         if (running) return;
         running = true;
         lastNs = 0;
-        prev = new HashSet<>();
+        engine.prof = cfg.p();
         Choreographer.getInstance().postFrameCallback(fc);
     }
 
     void stopLoop() {
         running = false;
         setup = false;
+        engine.setup = false;
         sel = -1;
-        releaseAll();
-    }
-
-    private static float dz(float v) {
-        float a = Math.abs(v);
-        if (a < 0.18f) return 0;
-        float t = Math.min(1f, (a - 0.18f) / 0.8f);
-        return Math.signum(v) * t * t;
+        selStick = -1;
+        engine.releaseAll();
     }
 
     private void frame(long ns) {
@@ -339,150 +356,89 @@ final class Pad {
         Choreographer.getInstance().postFrameCallback(fc);
         float dt = lastNs == 0 ? 0.016f : Math.min(0.05f, (ns - lastNs) / 1e9f);
         lastNs = ns;
-        int[] b = btns;
-        float[] a = axes;
-        Set<Integer> now = new HashSet<>();
-        for (int x : b) now.add(x);
-
-        boolean combo = hasSelect(now) && hasStart(now);
-        boolean prevCombo = hasSelect(prev) && hasStart(prev);
-        if (combo && !prevCombo) {
-            prev = now;
-            setSetup(!setup);
-            return;
+        engine.prof = cfg.p();
+        boolean redraw = engine.frame(btns, axes, android.os.SystemClock.uptimeMillis(), dt);
+        for (int s = 0; s < 2; s++) {
+            boolean v = cursorVisible(s);
+            if (v != lastVisible[s]) redraw = true;
+            lastVisible[s] = v;
         }
-        for (int x : now) if (!prev.contains(x)) onBtn(x, true);
-        for (int x : prev) if (!now.contains(x)) onBtn(x, false);
-        prev = now;
-
-        int dx = (now.contains(0x223) ? 1 : 0) - (now.contains(0x222) ? 1 : 0);
-        int dy = (now.contains(0x221) ? 1 : 0) - (now.contains(0x220) ? 1 : 0);
-        dpHold = (dx != 0 || dy != 0) ? dpHold + dt : 0;
-        float acc = Math.min(1f, 0.3f + dpHold * 0.9f);
-        float vx = dz(a[0]) + dz(a[2]) * 0.3f + dx * acc;
-        float vy = dz(a[1]) + dz(a[3]) * 0.3f + dy * acc;
-        boolean redraw = false;
-        if (vx != 0 || vy != 0) {
-            float sp = Math.min(w, h) * 1.2f * cfg.speed;
-            curX = Math.max(0, Math.min(w - 1, curX + vx * sp * dt));
-            curY = Math.max(0, Math.min(h - 1, curY + vy * sp * dt));
-            for (int pid : cursorHeld) tMove(pid, curX, curY);
-            idle = 0;
-            redraw = true;
-        } else {
-            idle += dt;
-        }
-        boolean vis = cursorVisible();
-        if (vis != lastVisible) redraw = true;
-        lastVisible = vis;
         if (redraw && view != null) view.onPadFrame();
     }
 
-    private static boolean hasSelect(Set<Integer> s) {
-        for (int c : s) if (Config.isSelect(c)) return true;
-        return false;
-    }
-
-    private static boolean hasStart(Set<Integer> s) {
-        for (int c : s) if (Config.isStart(c)) return true;
-        return false;
-    }
-
-    boolean cursorVisible() {
+    boolean cursorVisible(int s) {
         if (svc == null) return false;
+        if (cfg.p().sticks[s].mode != Model.S_CURSOR) return false;
         if (setup) return true;
-        return cfg.showCursor && (idle < 2.5f || !cursorHeld.isEmpty());
-    }
-
-    private void onBtn(int code, boolean pressed) {
-        if (setup) {
-            if (pressed) setupPress(code);
-            return;
-        }
-        if (Config.isDpad(code)) return;
-        Config.Profile p = cfg.p();
-        if (pressed) {
-            if (p.cursor.contains(code)) {
-                int pid = allocPointer();
-                active.put(code, pid);
-                cursorHeld.add(pid);
-                tDown(pid, curX, curY);
-                idle = 0;
-                if (view != null) {
-                    view.onRipple(curX, curY);
-                    view.onPadFrame();
-                }
-            } else {
-                float[] pos = p.pos.get(code);
-                if (pos == null) return;
-                int pid = allocPointer();
-                active.put(code, pid);
-                float x = pos[0] * w, y = pos[1] * h;
-                tDown(pid, x, y);
-                if (view != null) {
-                    view.onRipple(x, y);
-                    view.onHit(code);
-                }
-            }
-        } else {
-            Integer pid = active.remove(code);
-            if (pid != null) {
-                boolean wasCursor = cursorHeld.remove(pid);
-                tUp(pid);
-                if (wasCursor && view != null) view.onPadFrame();
-            }
-        }
+        return cfg.showCursor && (engine.idle[s] < 2.5f || engine.anyHeldOnCursor(s));
     }
 
     // ---------------- setup mode ----------------
 
     void setSetup(boolean v) {
-        releaseAll();
+        engine.releaseAll();
         setup = v;
+        engine.setup = v;
         sel = -1;
-        idle = 0;
+        selStick = -1;
+        engine.idle[0] = engine.idle[1] = 0;
         if (view != null) view.onSetup();
     }
 
-    private void setupPress(int code) {
-        if (Config.isDpad(code)) return;
-        if (sel == code) {
-            place(code, curX, curY);
+    void selectStick(int s) {
+        sel = -1;
+        selStick = s;
+        if (view != null) view.onSetup();
+    }
+
+    void deselect() {
+        sel = -1;
+        selStick = -1;
+        if (view != null) view.onSetup();
+    }
+
+    /** Places button {@code code} at overlay pixel (x, y). */
+    void place(int code, float x, float y) {
+        Model.Btn b = cfg.p().btns.get(code);
+        if (b == null) {
+            b = new Model.Btn();
+            cfg.p().btns.put(code, b);
+        }
+        b.target = Model.T_POS;
+        b.x = x / w();
+        b.y = y / h();
+        msg(Model.label(code) + " を配置したよ");
+        changed();
+    }
+
+    private void placeAtCursor(int code) {
+        int s = engine.dpadStick();
+        if (s < 0) {
+            msg("カーソルがないから、画面をタップして置いてね");
             return;
         }
-        sel = code;
-        if (view != null) view.onSetup();
+        place(code, engine.cur[s][0], engine.cur[s][1]);
     }
 
-    void place(int code, float x, float y) {
-        cfg.p().setPos(code, x / w, y / h);
-        cfg.save();
-        sel = -1;
-        msg(Config.label(code) + " を配置したよ");
-        if (view != null) view.onSetup();
-    }
-
-    void setCursorBtn(int code) {
-        cfg.p().setCursor(code);
-        cfg.save();
-        msg(Config.label(code) + " はカーソル位置を押すよ");
-        sel = -1;
-        if (view != null) view.onSetup();
+    void setStickCenter(int s, float x, float y) {
+        Model.Stick k = cfg.p().sticks[s];
+        k.cx = Engine.clamp(x / w(), 0, 1);
+        k.cy = Engine.clamp(y / h(), 0, 1);
+        changed();
     }
 
     void clearBtn(int code) {
-        cfg.p().clear(code);
-        cfg.save();
-        msg(Config.label(code) + " を解除したよ");
-        sel = -1;
-        if (view != null) view.onSetup();
+        cfg.p().btns.remove(code);
+        msg(Model.label(code) + " を解除したよ");
+        changed();
     }
 
     void switchProfile(int delta) {
-        releaseAll();
+        engine.releaseAll();
         int n = cfg.profiles.size();
         cfg.current = ((cfg.current + delta) % n + n) % n;
         cfg.save();
+        engine.prof = cfg.p();
         fireWatchers();
     }
 

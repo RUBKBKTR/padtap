@@ -53,3 +53,45 @@ cat e2e-probe.log
 n=$(grep -c 'touch ACTION_DOWN' e2e-probe.log)
 echo "E2E touch downs: $n"
 if grep -q 'touch ACTION_MOVE' e2e-probe.log && [ "$n" -ge 2 ]; then echo "E2E PASS"; else echo "E2E FAIL"; fi
+
+# ---------- part 2: sticks, turbo, editors (config imported via adb) ----------
+# close the menu panel (outside tap) and make sure the probe is in front
+adb shell input tap 20 $((H - 30))
+sleep 1
+adb shell am start -W -n io.padtap/.ProbeActivity
+sleep 1
+CFG='{"profiles":[{"name":"E2E","btns":{"304":{"t":0,"x":0.5,"y":0.3,"m":1,"i":100,"s":64},"307":{"t":0,"x":0.5,"y":0.45,"m":0,"s":96}},"sticks":[{"m":2,"cx":0.25,"cy":0.75,"r":0.15,"d":0.1},{"m":3,"cx":0.75,"cy":0.75,"r":0.15,"u":true,"d":0.1,"sp":1}]}]}'
+B64=$(printf '%s' "$CFG" | base64 -w0)
+adb shell am broadcast -a io.padtap.IMPORT_CONFIG -n io.padtap/.ConfigReceiver --es b64 "$B64"
+sleep 1
+adb logcat -c
+adb shell "CLASSPATH=$APK app_process -Dpadtap.lib=$LIB -Dpadtap.mode=pad2 /system/bin io.padtap.SelfTest" > pad2.log 2>&1 &
+PADPID=$!
+sleep 9.5
+adb exec-out screencap -p > shot9-zones.png
+sleep 2.6
+adb exec-out screencap -p > shot10-btn-editor.png
+wait $PADPID
+cat pad2.log
+adb logcat -d -s PadTapProbe:I > e2e2-probe.log
+cat e2e2-probe.log
+python3 - <<'PY' | tee -a e2e.log
+import re
+W, H = 720, 1440
+ev = []
+for line in open('e2e2-probe.log'):
+    m = re.search(r'touch (ACTION_\w+)(?:\(\d+\))? n=\d+ x=(-?\d+) y=(-?\d+)', line)
+    if m: ev.append((m.group(1), int(m.group(2)), int(m.group(3))))
+def near(a, b, tol=12): return abs(a - b) <= tol
+ok = 0
+joy_down = any(e[0] == 'ACTION_DOWN' and near(e[1], 0.25*W) and near(e[2], 0.75*H) for e in ev)
+joy_move = any(e[0] == 'ACTION_MOVE' and near(e[1], 0.25*W + 0.15*W, 15) and near(e[2], 0.75*H) for e in ev)
+sw_down = any(e[0] == 'ACTION_DOWN' and near(e[1], 0.75*W) and near(e[2], 0.75*H) for e in ev)
+sw_up = any(e[0] == 'ACTION_MOVE' and near(e[1], 0.75*W) and e[2] < 0.75*H - 0.15*W - 20 for e in ev)
+turbo = sum(1 for e in ev if e[0] == 'ACTION_DOWN' and near(e[1], 0.5*W) and near(e[2], 0.3*H))
+res = [('joystick touch-down at center', joy_down), ('joystick moves to circle edge', joy_move),
+       ('swipe touch-down at center', sw_down), ('swipe goes beyond radius (unlimited)', sw_up),
+       ('turbo repeats (%d taps in 0.55s)' % turbo, 4 <= turbo <= 7)]
+for name, r in res: print(('E2E2 PASS ' if r else 'E2E2 FAIL ') + name)
+print('E2E2 ' + ('ALL PASS' if all(r for _, r in res) else 'SOME FAIL'))
+PY

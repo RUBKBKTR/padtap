@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle assembleRelease --stacktrace --no-daemon 2>&1 | tee ../build.log
+          gradle testReleaseUnitTest assembleRelease --stacktrace --no-daemon 2>&1 | tee ../build.log
           cp app/build/outputs/apk/release/app-release.apk ../padtap.apk
 
       - name: Enable KVM
@@ -87,7 +87,7 @@ jobs:
         run: |
           echo "job=${{ job.status }} build=${{ steps.build.outcome }} test=${{ steps.test.outcome }} e2e=${{ steps.e2e.outcome }} run=${{ github.run_number }} sha=${{ github.sha }}" > status.txt
           gh release view ci-logs >/dev/null 2>&1 || gh release create ci-logs --prerelease --latest=false --title "CI logs" --notes "build/test logs"
-          for f in status.txt build.log ci-test.log selftest.log probe.log test-status.txt e2e.log e2e-probe.log pad.log shot*.png; do
+          for f in status.txt build.log ci-test.log selftest.log probe.log test-status.txt e2e.log e2e-probe.log pad.log e2e2-probe.log pad2.log shot*.png; do
             [ -s "$f" ] || echo "(empty)" > "$f"
             gh release upload ci-logs "$f" --clobber || true
           done

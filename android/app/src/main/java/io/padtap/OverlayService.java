@@ -61,9 +61,8 @@ public class OverlayService extends Service implements Pad.View {
     private FrameLayout layerRoot;
     private Layer layer;
     private WindowManager.LayoutParams layerLp;
+    private MaxScroll hintScroll;
     private LinearLayout hint;
-    private TextView hintTitle, hintSub;
-    private LinearLayout hintRow;
 
     private TextView handle;
     private WindowManager.LayoutParams handleLp;
@@ -129,6 +128,7 @@ public class OverlayService extends Service implements Pad.View {
         layerLp.height = sz.y;
         safeUpdate(layerRoot, layerLp);
         placeHandle();
+        if (pad.setup) placeHint();
         if (panelShown) {
             showPanel(false);
             showPanel(true);
@@ -248,28 +248,14 @@ public class OverlayService extends Service implements Pad.View {
         layerRoot.addView(layer, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
+        hintScroll = new MaxScroll(this);
+        hintScroll.setBackground(round(0xF2101420, 14, 0xFF444A66));
         hint = new LinearLayout(this);
         hint.setOrientation(LinearLayout.VERTICAL);
-        hint.setGravity(Gravity.CENTER_HORIZONTAL);
-        hint.setPadding(px(14), px(10), px(14), px(10));
-        hint.setBackground(round(0xF2101420, 14, 0xFF444A66));
-        hintTitle = text("", 15, Color.WHITE, true);
-        hintTitle.setGravity(Gravity.CENTER);
-        hintSub = text("", 12, 0xFF99AABB, false);
-        hintSub.setGravity(Gravity.CENTER);
-        hintRow = new LinearLayout(this);
-        hintRow.setOrientation(LinearLayout.HORIZONTAL);
-        hintRow.setGravity(Gravity.CENTER);
-        hint.addView(hintTitle);
-        hint.addView(hintSub, margins(-2, -2, 0, 2, 0, 0));
-        hint.addView(hintRow, margins(-2, -2, 0, 8, 0, 0));
-        FrameLayout.LayoutParams hp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        hp.topMargin = px(36);
-        hp.leftMargin = px(10);
-        hp.rightMargin = px(10);
-        layerRoot.addView(hint, hp);
-        hint.setVisibility(View.GONE);
+        hint.setPadding(px(14), px(10), px(14), px(12));
+        hintScroll.addView(hint);
+        layerRoot.addView(hintScroll, new FrameLayout.LayoutParams(-2, -2));
+        hintScroll.setVisibility(View.GONE);
 
         Point sz = realSize();
         layerLp = lp(sz.x, sz.y, WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
@@ -279,6 +265,31 @@ public class OverlayService extends Service implements Pad.View {
         // Android 12+: touches only pass through overlays at <= 80% opacity.
         layerLp.alpha = 0.8f;
         wm.addView(layerRoot, layerLp);
+    }
+
+    /** ScrollView with a height cap. */
+    private static final class MaxScroll extends android.widget.ScrollView {
+        int maxH = Integer.MAX_VALUE;
+
+        MaxScroll(Context c) {
+            super(c);
+        }
+
+        @Override
+        protected void onMeasure(int wSpec, int hSpec) {
+            super.onMeasure(wSpec, MeasureSpec.makeMeasureSpec(maxH, MeasureSpec.AT_MOST));
+        }
+    }
+
+    private void placeHint() {
+        Point sz = realSize();
+        FrameLayout.LayoutParams hp = new FrameLayout.LayoutParams(Math.min(sz.x - px(20), px(440)),
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                (pad.cfg.hintBottom ? Gravity.BOTTOM : Gravity.TOP) | Gravity.CENTER_HORIZONTAL);
+        hp.topMargin = px(36);
+        hp.bottomMargin = px(24);
+        hintScroll.maxH = (int) (sz.y * 0.55f);
+        hintScroll.setLayoutParams(hp);
     }
 
     private static final class Rip {
@@ -292,15 +303,24 @@ public class OverlayService extends Service implements Pad.View {
         }
     }
 
+    static final int NONE = Integer.MIN_VALUE;
+
+    static int stickKey(int s) {
+        return -10 - s;
+    }
+
+    private static final int COL_L = 0xFF77CCFF, COL_R = 0xFFFFAA55;
+
     private final class Layer extends View {
         final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Paint rp = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final android.graphics.DashPathEffect dash;
         final List<Rip> ripples = new ArrayList<>();
-        int hitCode = -1;
+        int hitCode = NONE;
         long hitAt;
-        int drag = -1;
+        int drag = NONE;
         boolean moved;
         float sx, sy, dx, dy;
 
@@ -316,6 +336,7 @@ public class OverlayService extends Service implements Pad.View {
             rp.setStyle(Paint.Style.STROKE);
             rp.setStrokeWidth(2 * dp);
             rp.setColor(0xFF77CCFF);
+            dash = new android.graphics.DashPathEffect(new float[]{5 * dp, 4 * dp}, 0);
         }
 
         @Override
@@ -326,44 +347,93 @@ public class OverlayService extends Service implements Pad.View {
             pad.setSurface(getWidth(), getHeight(), loc[0], loc[1]);
         }
 
+        private void ring(Canvas c, float x, float y, float r, int color, boolean dashed) {
+            stroke.setColor(color);
+            stroke.setPathEffect(dashed ? dash : null);
+            c.drawCircle(x, y, r, stroke);
+            stroke.setPathEffect(null);
+        }
+
         @Override
         protected void onDraw(Canvas c) {
             int W = getWidth(), H = getHeight();
+            float S = Math.min(W, H);
             long now = SystemClock.uptimeMillis();
+            Engine eng = pad.engine;
             if (pad.setup) c.drawColor(0x77080A12);
-            Config.Profile p = pad.cfg.p();
-            if (pad.setup || pad.cfg.showMarks) {
-                for (Map.Entry<Integer, float[]> e : p.pos.entrySet()) {
+            Model.Profile p = pad.cfg.p();
+            boolean marks = pad.setup || pad.cfg.showMarks;
+            if (marks) {
+                // stick zones
+                for (int s = 0; s < 2; s++) {
+                    Model.Stick k = p.sticks[s];
+                    if (k.mode != Model.S_JOY && k.mode != Model.S_SWIPE) continue;
+                    float x = k.cx * W, y = k.cy * H;
+                    if (drag == stickKey(s) && moved) {
+                        x = dx;
+                        y = dy;
+                    }
+                    int col = s == 0 ? COL_L : COL_R;
+                    boolean sel = pad.setup && pad.selStick == s;
+                    boolean unlimited = k.mode == Model.S_SWIPE && k.unlimited;
+                    if (!unlimited) {
+                        float R = k.radius * S;
+                        fill.setColor((col & 0x00FFFFFF) | (sel ? 0x33000000 : 0x1A000000));
+                        c.drawCircle(x, y, R, fill);
+                        ring(c, x, y, R, col, k.mode == Model.S_SWIPE);
+                    }
+                    fill.setColor(sel ? 0xCCFFDD66 : (col & 0x00FFFFFF) | 0x99000000);
+                    c.drawCircle(x, y, 14 * dp, fill);
+                    c.drawText((s == 0 ? "L" : "R") + (unlimited ? "∞" : ""), x, y + label.getTextSize() * 0.35f, label);
+                }
+                // position buttons
+                for (Map.Entry<Integer, Model.Btn> e : p.btns.entrySet()) {
+                    Model.Btn b = e.getValue();
+                    if (b.target != Model.T_POS) continue;
                     int code = e.getKey();
-                    float x = e.getValue()[0] * W, y = e.getValue()[1] * H;
+                    float x = b.x * W, y = b.y * H;
                     if (code == drag && moved) {
                         x = dx;
                         y = dy;
                     }
-                    boolean sel = code == pad.sel;
-                    boolean hit = code == hitCode && now - hitAt < 120;
-                    float r = 24 * dp * (sel ? 1.15f : hit ? 0.85f : 1f);
+                    boolean sel = pad.setup && code == pad.sel;
+                    boolean hit = code == hitCode && now - hitAt < 100;
+                    float r = b.size / 2f * dp * (sel ? 1.1f : hit ? 0.85f : 1f);
                     fill.setColor(sel ? 0x55FFDC64 : hit ? 0x9978C8FF : 0x30FFFFFF);
                     c.drawCircle(x, y, r, fill);
-                    stroke.setColor(sel ? 0xFFFFDD66 : 0xFF77CCFF);
-                    c.drawCircle(x, y, r, stroke);
-                    c.drawText(Config.label(code), x, y + label.getTextSize() * 0.35f, label);
+                    ring(c, x, y, r, sel ? 0xFFFFDD66 : 0xFF77CCFF, b.mode == Model.M_TURBO);
+                    String lb = Model.label(code) + (b.mode == Model.M_TURBO ? "連" : "");
+                    c.drawText(lb, x, y + label.getTextSize() * 0.35f, label);
                 }
             }
             for (Iterator<Rip> it = ripples.iterator(); it.hasNext(); ) {
                 Rip r = it.next();
-                float t = (now - r.t) / 350f;
+                float t = (now - r.t) / 300f;
                 if (t >= 1) {
                     it.remove();
                     continue;
                 }
                 rp.setAlpha((int) (255 * (1 - t)));
-                c.drawCircle(r.x, r.y, 20 * dp * (0.4f + 0.9f * t), rp);
+                c.drawCircle(r.x, r.y, 18 * dp * (0.4f + 0.9f * t), rp);
             }
-            if (pad.cursorVisible()) {
-                float x = pad.curX, y = pad.curY;
-                boolean held = !pad.cursorHeld.isEmpty();
+            // stick fingers / previews
+            for (int s = 0; s < 2; s++) {
+                float[] pt = null;
+                if (pad.setup && eng.previewOn[s]) pt = eng.preview[s];
+                else if (!pad.setup && pad.cfg.showCursor && eng.stickPid[s] >= 0) pt = eng.touch[s];
+                if (pt == null) continue;
+                fill.setColor((s == 0 ? COL_L : COL_R) & 0xCCFFFFFF);
+                c.drawCircle(pt[0], pt[1], 9 * dp, fill);
+                ring(c, pt[0], pt[1], 9 * dp, Color.WHITE, false);
+            }
+            // cursors
+            boolean both = p.sticks[0].mode == Model.S_CURSOR && p.sticks[1].mode == Model.S_CURSOR;
+            for (int s = 0; s < 2; s++) {
+                if (!pad.cursorVisible(s)) continue;
+                float x = eng.cur[s][0], y = eng.cur[s][1];
+                boolean held = eng.anyHeldOnCursor(s);
                 float r = 14 * dp * (held ? 0.8f : 1f);
+                int col = s == 0 ? Color.WHITE : COL_R;
                 if (held) {
                     fill.setColor(0x8C78C8FF);
                     c.drawCircle(x, y, r, fill);
@@ -371,23 +441,36 @@ public class OverlayService extends Service implements Pad.View {
                 stroke.setColor(0x8C000000);
                 stroke.setStrokeWidth(5 * dp);
                 c.drawCircle(x, y, r, stroke);
-                stroke.setColor(Color.WHITE);
                 stroke.setStrokeWidth(2 * dp);
-                c.drawCircle(x, y, r, stroke);
-                fill.setColor(Color.WHITE);
+                ring(c, x, y, r, col, false);
+                fill.setColor(col);
                 c.drawCircle(x, y, 2.5f * dp, fill);
+                if (both) c.drawText(s == 0 ? "L" : "R", x + r + 7 * dp, y - r, label);
             }
-            if (!ripples.isEmpty() || (hitCode >= 0 && now - hitAt < 150)) postInvalidateOnAnimation();
+            if (!ripples.isEmpty() || (hitCode != NONE && now - hitAt < 150)) postInvalidateOnAnimation();
         }
 
         private int findMark(float x, float y) {
-            int best = -1;
-            float bd = 32 * dp;
-            for (Map.Entry<Integer, float[]> e : pad.cfg.p().pos.entrySet()) {
-                float d = (float) Math.hypot(e.getValue()[0] * getWidth() - x, e.getValue()[1] * getHeight() - y);
-                if (d < bd) {
+            int best = NONE;
+            Model.Profile p = pad.cfg.p();
+            float bd = Float.MAX_VALUE;
+            for (Map.Entry<Integer, Model.Btn> e : p.btns.entrySet()) {
+                Model.Btn b = e.getValue();
+                if (b.target != Model.T_POS) continue;
+                float d = (float) Math.hypot(b.x * getWidth() - x, b.y * getHeight() - y);
+                float lim = Math.max(24 * dp, b.size / 2f * dp + 6 * dp);
+                if (d < lim && d < bd) {
                     bd = d;
                     best = e.getKey();
+                }
+            }
+            for (int s = 0; s < 2; s++) {
+                Model.Stick k = p.sticks[s];
+                if (k.mode != Model.S_JOY && k.mode != Model.S_SWIPE) continue;
+                float d = (float) Math.hypot(k.cx * getWidth() - x, k.cy * getHeight() - y);
+                if (d < 26 * dp && d < bd) {
+                    bd = d;
+                    best = stickKey(s);
                 }
             }
             return best;
@@ -405,13 +488,24 @@ public class OverlayService extends Service implements Pad.View {
                     sy = y;
                     dx = x;
                     dy = y;
-                    if (drag < 0) {
-                        if (pad.sel >= 0) pad.place(pad.sel, x, y);
-                        else pad.msg("先にコントローラーのボタンを押してね");
+                    if (drag == NONE) {
+                        if (pad.sel >= 0) {
+                            pad.place(pad.sel, x, y);
+                        } else if (pad.selStick >= 0) {
+                            int m = pad.cfg.p().sticks[pad.selStick].mode;
+                            if (m == Model.S_JOY || m == Model.S_SWIPE) {
+                                pad.setStickCenter(pad.selStick, x, y);
+                                pad.msg("中心をここにしたよ");
+                            } else {
+                                pad.msg("仮想スティックかスワイプにすると中心を置けるよ");
+                            }
+                        } else {
+                            pad.msg("先にコントローラーのボタンを押すか、スティックを選んでね");
+                        }
                     }
                     return true;
                 case MotionEvent.ACTION_MOVE:
-                    if (drag >= 0) {
+                    if (drag != NONE) {
                         if (Math.hypot(x - sx, y - sy) > 6 * dp) moved = true;
                         if (moved) {
                             dx = x;
@@ -421,58 +515,251 @@ public class OverlayService extends Service implements Pad.View {
                     }
                     return true;
                 case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    if (drag >= 0) {
+                case MotionEvent.ACTION_CANCEL: {
+                    int d = drag;
+                    drag = NONE;
+                    if (d == NONE) return true;
+                    if (d >= 0) {
                         if (moved) {
-                            pad.cfg.p().setPos(drag, x / getWidth(), y / getHeight());
-                            pad.cfg.save();
+                            Model.Btn b = pad.cfg.p().btns.get(d);
+                            if (b != null) {
+                                b.x = Engine.clamp(x / getWidth(), 0, 1);
+                                b.y = Engine.clamp(y / getHeight(), 0, 1);
+                            }
+                            pad.sel = d;
+                            pad.selStick = -1;
+                            pad.changed();
                         } else {
-                            pad.sel = drag;
+                            pad.sel = d;
+                            pad.selStick = -1;
+                            onSetup();
                         }
-                        drag = -1;
-                        moved = false;
-                        onSetup();
+                    } else {
+                        int s = -10 - d;
+                        if (moved) {
+                            pad.selStick = s;
+                            pad.sel = -1;
+                            pad.setStickCenter(s, x, y);
+                        } else {
+                            pad.selectStick(s);
+                        }
                     }
+                    moved = false;
                     return true;
+                }
                 default:
                     return true;
             }
         }
     }
 
-    private void updateHint() {
-        hintRow.removeAllViews();
-        Config.Profile p = pad.cfg.p();
-        LinearLayout.LayoutParams bp = margins(-2, -2, 3, 0, 3, 0);
-        if (pad.sel < 0) {
-            hintTitle.setText("割り当てたいボタンをコントローラーで押してね");
-            StringBuilder cs = new StringBuilder();
-            for (int c : p.cursor) {
-                if (cs.length() > 0) cs.append(", ");
-                cs.append(Config.label(c));
-            }
-            hintSub.setText("マークはドラッグで移動／タップで選択"
-                    + (cs.length() > 0 ? "\nカーソル位置を押す: " + cs : "")
-                    + "\nプロファイル: " + p.name);
-            hintRow.addView(btn("メニュー", 0, v -> {
-                pad.setSetup(false);
-                showPanel(true);
-            }), bp);
-            hintRow.addView(btn("完了", 1, v -> pad.setSetup(false)), bp);
-        } else {
-            final int s = pad.sel;
-            String n = Config.label(s);
-            hintTitle.setText(n + " を置く場所をタップ");
-            hintSub.setText("もう一度 " + n + " を押すとカーソル位置に置くよ"
-                    + (p.cursor.contains(s) ? "\n（今: カーソル位置を押すボタン）" : ""));
-            hintRow.addView(btn("カーソル用にする", 0, v -> pad.setCursorBtn(s)), bp);
-            if (p.has(s)) hintRow.addView(btn("解除", 2, v -> pad.clearBtn(s)), bp);
-            hintRow.addView(btn("戻る", 0, v -> {
-                pad.sel = -1;
-                onSetup();
-            }), bp);
-            hintRow.addView(btn("完了", 1, v -> pad.setSetup(false)), bp);
+    // ---------------- setup editor (hint panel) ----------------
+
+    private interface Fmt {
+        String f(int v);
+    }
+
+    private interface Apply {
+        void a(int v);
+    }
+
+    private interface Pick {
+        void p(int i);
+    }
+
+    private TextView sectionLabel(String s) {
+        TextView t = text(s, 12, 0xFF99AABB, false);
+        t.setPadding(0, px(8), 0, px(3));
+        return t;
+    }
+
+    private View chips(String title, String[] labels, int selected, Pick pick) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        if (title != null) col.addView(sectionLabel(title));
+        android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(this);
+        hs.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        for (int i = 0; i < labels.length; i++) {
+            final int idx = i;
+            row.addView(btn(labels[i], i == selected ? 1 : 0, v -> pick.p(idx)), margins(-2, -2, 0, 0, 6, 0));
         }
+        hs.addView(row);
+        col.addView(hs);
+        return col;
+    }
+
+    private View slider(String title, int min, int max, int value, Fmt fmt, Apply apply) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        TextView lab = sectionLabel(title + "：" + fmt.f(value));
+        col.addView(lab);
+        SeekBar sb = new SeekBar(themed);
+        sb.setMax(max - min);
+        sb.setProgress(Math.max(0, Math.min(max - min, value - min)));
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar s, int v, boolean user) {
+                apply.a(v + min);
+                lab.setText(title + "：" + fmt.f(v + min));
+                layer.invalidate();
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar s) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar s) {
+                pad.cfg.save();
+            }
+        });
+        col.addView(sb, new LinearLayout.LayoutParams(-1, -2));
+        return col;
+    }
+
+    private void hintHeader(String title, String sub) {
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        TextView t = text(title, 15, Color.WHITE, true);
+        head.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));
+        head.addView(btn(pad.cfg.hintBottom ? "▲" : "▼", 0, v -> {
+            pad.cfg.hintBottom = !pad.cfg.hintBottom;
+            pad.cfg.save();
+            placeHint();
+            updateHint();
+        }));
+        hint.addView(head);
+        if (sub != null && !sub.isEmpty()) {
+            TextView s = text(sub, 12, 0xFF99AABB, false);
+            s.setPadding(0, px(2), 0, 0);
+            hint.addView(s);
+        }
+    }
+
+    private void footer(boolean back, View.OnClickListener extraAction, String extraLabel, int extraKind) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.END);
+        if (extraAction != null) row.addView(btn(extraLabel, extraKind, extraAction), margins(-2, -2, 0, 0, 6, 0));
+        if (back) row.addView(btn("戻る", 0, v -> pad.deselect()), margins(-2, -2, 0, 0, 6, 0));
+        row.addView(btn("完了", 1, v -> pad.setSetup(false)));
+        hint.addView(row, margins(-1, -2, 0, 12, 0, 0));
+    }
+
+    private static String fmt1(float v) {
+        return String.format(java.util.Locale.US, "%.1f", v);
+    }
+
+    private void updateHint() {
+        hint.removeAllViews();
+        Model.Profile p = pad.cfg.p();
+        if (pad.selStick >= 0) stickEditor(p, pad.selStick);
+        else if (pad.sel >= 0) btnEditor(p, pad.sel);
+        else idleHint(p);
+    }
+
+    private void idleHint(Model.Profile p) {
+        hintHeader("設定したいボタンを押してね",
+                "コントローラーのボタンを押すと、そのボタンの設定が出るよ\nマークはドラッグで移動／タップで選択\nプロファイル: " + p.name);
+        hint.addView(chips("スティック", new String[]{"左スティック", "右スティック"}, -1, pad::selectStick));
+        footer(false, v -> {
+            pad.setSetup(false);
+            showPanel(true);
+        }, "メニュー", 0);
+    }
+
+    private void btnEditor(Model.Profile p, int code) {
+        Model.Btn b = p.btns.get(code);
+        String n = Model.label(code);
+        String sub;
+        if (b == null) sub = "画面をタップすると、その場所を押すボタンになるよ\nもう一度 " + n + " を押すとカーソルの位置に置く";
+        else if (b.target == Model.T_POS) sub = "画面をタップ／マークをドラッグで位置を変えられる";
+        else sub = (b.target == Model.T_CUR_L ? "左" : "右") + "カーソルの位置を押すボタン";
+        hintHeader(n + " の設定", sub);
+
+        hint.addView(chips("押す場所", new String[]{"画面の位置", "左カーソル", "右カーソル"},
+                b == null ? -1 : b.target, i -> {
+                    Model.Btn bb = p.btns.get(code);
+                    if (i == Model.T_POS) {
+                        if (bb == null) {
+                            pad.msg("画面の押したい場所をタップしてね");
+                            return;
+                        }
+                        bb.target = Model.T_POS;
+                    } else {
+                        if (bb == null) {
+                            bb = new Model.Btn(i);
+                            p.btns.put(code, bb);
+                        } else {
+                            bb.target = i;
+                        }
+                        int s = i == Model.T_CUR_L ? 0 : 1;
+                        if (p.sticks[s].mode != Model.S_CURSOR) {
+                            pad.msg(Model.stickName(s) + "を「カーソル」にすると使えるよ");
+                        }
+                    }
+                    pad.changed();
+                }));
+        if (b != null) {
+            hint.addView(chips("押し方", new String[]{"長押し", "連打"}, b.mode, i -> {
+                b.mode = i;
+                pad.changed();
+            }));
+            if (b.mode == Model.M_TURBO) {
+                hint.addView(slider("連打の間隔", 5, 100, Math.round(b.interval / 10f),
+                        v -> (v * 10) + "ms（1秒に約" + fmt1(100f / v) + "回）",
+                        v -> b.interval = v * 10));
+            }
+            if (b.target == Model.T_POS) {
+                hint.addView(slider("サイズ", 28, 120, Math.round(b.size), v -> v + "dp", v -> b.size = v));
+            }
+        }
+        footer(true, b == null ? null : v -> pad.clearBtn(code), "解除", 2);
+    }
+
+    private void stickEditor(Model.Profile p, int s) {
+        Model.Stick k = p.sticks[s];
+        String sub;
+        switch (k.mode) {
+            case Model.S_CURSOR:
+                sub = "スティックでカーソルを動かす。押すボタンは各ボタンの設定で「" + (s == 0 ? "左" : "右") + "カーソル」を選んでね";
+                break;
+            case Model.S_JOY:
+                sub = "傾けた分だけ、円の中を指でなぞる。離すと指も離れる\n画面をタップ／Lマークをドラッグで中心を決める";
+                break;
+            case Model.S_SWIPE:
+                sub = "傾けた方向へ指をすべらせる。離すと指を離して中心に戻る\n画面をタップ／マークをドラッグで中心を決める";
+                break;
+            default:
+                sub = "このスティックは使わない";
+        }
+        if (k.mode == Model.S_JOY || k.mode == Model.S_SWIPE) sub = sub.replace("Lマーク", s == 0 ? "Lマーク" : "Rマーク");
+        hintHeader(Model.stickName(s) + " の設定", sub);
+        hint.addView(chips("動き", new String[]{"使わない", "カーソル", "仮想スティック", "スワイプ"}, k.mode, i -> {
+            k.mode = i;
+            pad.changed();
+        }));
+        if (k.mode != Model.S_OFF) {
+            hint.addView(slider("デッドゾーン（反応しない傾き）", 0, 50, Math.round(k.dead * 100), v -> v + "%",
+                    v -> k.dead = v / 100f));
+        }
+        if (k.mode == Model.S_CURSOR || k.mode == Model.S_SWIPE) {
+            hint.addView(slider("速さ", 3, 30, Math.round(k.speed * 10), v -> fmt1(v / 10f) + "倍", v -> k.speed = v / 10f));
+        }
+        if (k.mode == Model.S_SWIPE) {
+            hint.addView(chips("動ける範囲", new String[]{"円の中", "無制限"}, k.unlimited ? 1 : 0, i -> {
+                k.unlimited = i == 1;
+                pad.changed();
+            }));
+        }
+        if (k.mode == Model.S_JOY || (k.mode == Model.S_SWIPE && !k.unlimited)) {
+            hint.addView(slider("円の大きさ（半径）", 4, 50, Math.round(k.radius * 100), v -> v + "%",
+                    v -> k.radius = v / 100f));
+        }
+        footer(true, null, null, 0);
     }
 
     // ---------------- floating icon ----------------
@@ -653,28 +940,8 @@ public class OverlayService extends Service implements Pad.View {
         TextView gs = text("OFFにするとBで「戻る」が起きたりする", 11, 0xFF8890A8, false);
         panel.addView(gs, margins(-2, -2, 32, 0, 0, 4));
 
-        LinearLayout sr = row();
-        sr.addView(text("カーソル速度", 14, 0xFFE6E8F2, false));
-        SeekBar sb = new SeekBar(themed);
-        sb.setMax(27);
-        sb.setProgress(Math.round(pad.cfg.speed * 10) - 3);
-        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar s, int v, boolean user) {
-                pad.cfg.speed = (v + 3) / 10f;
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar s) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar s) {
-                pad.cfg.save();
-            }
-        });
-        sr.addView(sb, new LinearLayout.LayoutParams(0, -2, 1f));
-        panel.addView(sr);
+        panel.addView(text("スティックの動きやボタンの連打は「ボタン配置を設定」から", 11, 0xFF8890A8, false),
+                margins(-2, -2, 0, 6, 0, 0));
 
         LinearLayout br = row();
         br.addView(btn("閉じる", 0, v -> showPanel(false)), new LinearLayout.LayoutParams(0, -2, 1f));
@@ -697,7 +964,7 @@ public class OverlayService extends Service implements Pad.View {
         else st = "接続中: " + pad.devices.replace("\n", " / ");
         if (!pad.lastError.isEmpty()) st += "\n" + pad.lastError;
         panelStatus.setText(st);
-        Config.Profile p = pad.cfg.p();
+        Model.Profile p = pad.cfg.p();
         panelProfile.setText(p.name + "  (" + (pad.cfg.current + 1) + "/" + pad.cfg.profiles.size() + ")");
     }
 
@@ -734,12 +1001,13 @@ public class OverlayService extends Service implements Pad.View {
         if (s) {
             layerLp.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
             if (panelShown) showPanel(false);
+            placeHint();
             updateHint();
         } else {
             layerLp.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
         }
         safeUpdate(layerRoot, layerLp);
-        hint.setVisibility(s ? View.VISIBLE : View.GONE);
+        hintScroll.setVisibility(s ? View.VISIBLE : View.GONE);
         handle.setVisibility(s ? View.GONE : View.VISIBLE);
         layer.invalidate();
     }

@@ -189,13 +189,13 @@ public class MainActivity extends Activity {
         LinearLayout cp = card("プロファイル（ゲームごとの配置）", null, 0);
         for (int i = 0; i < pad.cfg.profiles.size(); i++) {
             final int idx = i;
-            Config.Profile p = pad.cfg.profiles.get(i);
+            Model.Profile p = pad.cfg.profiles.get(i);
             LinearLayout r = new LinearLayout(this);
             r.setOrientation(LinearLayout.HORIZONTAL);
             r.setGravity(Gravity.CENTER_VERTICAL);
             r.setPadding(0, px(6), 0, px(6));
             boolean cur = i == pad.cfg.current;
-            TextView name = text((cur ? "● " : "○ ") + p.name + "   " + p.pos.size() + "個", 15, cur ? TX : MUT, cur);
+            TextView name = text((cur ? "● " : "○ ") + p.name + "   " + p.btns.size() + "個", 15, cur ? TX : MUT, cur);
             name.setOnClickListener(v -> {
                 pad.cfg.current = idx;
                 pad.cfg.save();
@@ -244,7 +244,7 @@ public class MainActivity extends Activity {
     }
 
     private void rename(int idx) {
-        Config.Profile p = pad.cfg.profiles.get(idx);
+        Model.Profile p = pad.cfg.profiles.get(idx);
         EditText et = new EditText(this);
         et.setText(p.name);
         et.setSingleLine(true);
