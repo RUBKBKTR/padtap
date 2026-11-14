@@ -29,6 +29,7 @@ final class Engine {
     }
 
     static final int MAX_POINTERS = 10;
+    static final float SETTLE_EPS = 0.01f;
 
     private final Out out;
     private final Hooks hooks;
@@ -126,7 +127,9 @@ final class Engine {
 
     private void settle(int s) {
         if (settleStick[s] && stickPid[s] >= 0) {
-            out.move(stickPid[s], touch[s][0], touch[s][1]);
+            // A tiny offset: Android keeps showing a resampled (overshot) position for samples
+            // identical to the previous one, so the settle sample must differ slightly.
+            out.move(stickPid[s], touch[s][0] + SETTLE_EPS, touch[s][1]);
         }
         settleStick[s] = false;
     }
@@ -243,7 +246,9 @@ final class Engine {
                     if (settleCur[s]) {
                         settleCur[s] = false;
                         for (Held hd : held.values()) {
-                            if (Model.cursorSide(hd.target) == s && hd.isDown) out.move(hd.pid, cur[s][0], cur[s][1]);
+                            if (Model.cursorSide(hd.target) == s && hd.isDown) {
+                                out.move(hd.pid, cur[s][0] + SETTLE_EPS, cur[s][1]);
+                            }
                         }
                     }
                     return false;

@@ -90,10 +90,12 @@ def near(a, b, tol=12): return abs(a - b) <= tol
 ok = 0
 joy_down = any(e[0] == 'ACTION_DOWN' and near(e[1], 0.25*W) and near(e[2], 0.75*H) for e in ev)
 joy_move = any(e[0] == 'ACTION_MOVE' and near(e[1], 0.25*W + 0.15*W, 15) and near(e[2], 0.75*H) for e in ev)
+joy_up = [e for e in ev if e[0] == 'ACTION_UP' and near(e[2], 0.75*H) and e[1] < 0.5*W]
+joy_settled = bool(joy_up) and near(joy_up[0][1], 0.25*W + 0.15*W, 6)
 sw_down = any(e[0] == 'ACTION_DOWN' and near(e[1], 0.75*W) and near(e[2], 0.75*H) for e in ev)
 sw_up = any(e[0] == 'ACTION_MOVE' and near(e[1], 0.75*W) and e[2] < 0.75*H - 0.15*W - 20 for e in ev)
 turbo = sum(1 for e in ev if e[0] == 'ACTION_DOWN' and near(e[1], 0.5*W) and near(e[2], 0.3*H))
-res = [('joystick touch-down at center', joy_down), ('joystick moves to circle edge', joy_move),
+res = [('joystick touch-down at center', joy_down), ('joystick moves to circle edge', joy_move), ('joystick settles at edge (%s)' % (joy_up[0][1] if joy_up else '-'), joy_settled),
        ('swipe touch-down at center', sw_down), ('swipe goes beyond radius (unlimited)', sw_up),
        ('turbo repeats (%d taps in ~0.8s hold)' % turbo, 6 <= turbo <= 10)]
 for name, r in res: print(('E2E2 PASS ' if r else 'E2E2 FAIL ') + name)
