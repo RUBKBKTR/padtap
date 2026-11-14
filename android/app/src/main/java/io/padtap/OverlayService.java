@@ -738,7 +738,7 @@ public class OverlayService extends Service implements Pad.View {
         }
         if (k.mode == Model.S_JOY || k.mode == Model.S_SWIPE) sub = sub.replace("Lマーク", s == 0 ? "Lマーク" : "Rマーク");
         hintHeader(Model.stickName(s) + " の設定", sub);
-        hint.addView(chips("動き", new String[]{"使わない", "カーソル", "仮想スティック", "スワイプ"}, k.mode, i -> {
+        hint.addView(chips("動き", new String[]{"OFF", "カーソル", "仮想スティック", "スワイプ"}, k.mode, i -> {
             k.mode = i;
             pad.changed();
         }));
