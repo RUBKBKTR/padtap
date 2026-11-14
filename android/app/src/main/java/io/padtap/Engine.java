@@ -46,6 +46,9 @@ final class Engine {
     final float[][] preview = new float[2][2];
     final boolean[] previewOn = new boolean[2];
 
+    /** re-send the last position once after movement stops (counters Android touch resampling overshoot) */
+    private final boolean[] settleStick = new boolean[2];
+    private final boolean[] settleCur = new boolean[2];
     private final Map<Integer, Held> held = new HashMap<>();
     private final boolean[] pidUsed = new boolean[MAX_POINTERS];
     private Set<Integer> prev = new HashSet<>();
@@ -121,7 +124,15 @@ final class Engine {
         for (int s = 0; s < 2; s++) liftStick(s);
     }
 
+    private void settle(int s) {
+        if (settleStick[s] && stickPid[s] >= 0) {
+            out.move(stickPid[s], touch[s][0], touch[s][1]);
+        }
+        settleStick[s] = false;
+    }
+
     private void liftStick(int s) {
+        settleStick[s] = false;
         if (stickPid[s] >= 0) {
             out.up(stickPid[s]);
             free(stickPid[s]);
@@ -229,6 +240,12 @@ final class Engine {
                 float vx = ux * m * m + ddx * acc, vy = uy * m * m + ddy * acc;
                 if (vx == 0 && vy == 0) {
                     idle[s] += dt;
+                    if (settleCur[s]) {
+                        settleCur[s] = false;
+                        for (Held hd : held.values()) {
+                            if (Model.cursorSide(hd.target) == s && hd.isDown) out.move(hd.pid, cur[s][0], cur[s][1]);
+                        }
+                    }
                     return false;
                 }
                 float sp = S * 1.2f * k.speed;
@@ -236,7 +253,10 @@ final class Engine {
                 cur[s][1] = clamp(cur[s][1] + vy * sp * dt, 0, h - 1);
                 idle[s] = 0;
                 for (Held hd : held.values()) {
-                    if (Model.cursorSide(hd.target) == s && hd.isDown) out.move(hd.pid, cur[s][0], cur[s][1]);
+                    if (Model.cursorSide(hd.target) == s && hd.isDown) {
+                        out.move(hd.pid, cur[s][0], cur[s][1]);
+                        settleCur[s] = true;
+                    }
                 }
                 return true;
             }
@@ -263,8 +283,10 @@ final class Engine {
                         touch[s][0] = tx;
                         touch[s][1] = ty;
                         out.move(stickPid[s], tx, ty);
+                        settleStick[s] = true;
                         return true;
                     }
+                    settle(s);
                     return false;
                 } else if (stickPid[s] >= 0) {
                     liftStick(s);
@@ -307,8 +329,10 @@ final class Engine {
                         touch[s][0] = nx;
                         touch[s][1] = ny;
                         out.move(stickPid[s], nx, ny);
+                        settleStick[s] = true;
                         return true;
                     }
+                    settle(s);
                     return false;
                 } else if (stickPid[s] >= 0) {
                     liftStick(s);

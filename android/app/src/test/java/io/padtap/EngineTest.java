@@ -239,4 +239,34 @@ public class EngineTest {
         e.releaseAll();
         assertEquals(2, rec.count("U"));
     }
+
+    @Test
+    public void joystickResendsPositionOnceWhenStill() {
+        Model.Profile p = new Model.Profile("t");
+        p.sticks[0].mode = Model.S_JOY;
+        p.sticks[0].cx = 0.5f;
+        p.sticks[0].cy = 0.5f;
+        p.sticks[0].radius = 0.1f;
+        p.sticks[0].dead = 0f;
+        make(p);
+        step(new int[0], new float[]{1, 0, 0, 0});
+        step(new int[0], new float[]{1, 0, 0, 0});
+        int n = rec.ev.size();
+        steps(5, new int[0], new float[]{1, 0, 0, 0});
+        assertEquals(n + 1, rec.ev.size());
+        assertEquals("M0@600,1000", rec.last());
+    }
+
+    @Test
+    public void cursorDragSettlesAfterStop() {
+        make(Model.Profile.defaults("t"));
+        step(new int[]{A}, Z);
+        steps(5, new int[]{A}, new float[]{1, 0, 0, 0});
+        String lastMove = rec.last();
+        step(new int[]{A}, Z);
+        assertEquals(lastMove, rec.last());
+        int n = rec.ev.size();
+        steps(5, new int[]{A}, Z);
+        assertEquals(n, rec.ev.size());
+    }
 }
