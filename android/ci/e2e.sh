@@ -67,9 +67,13 @@ sleep 1
 adb logcat -c
 adb shell "CLASSPATH=$APK app_process -Dpadtap.lib=$LIB -Dpadtap.mode=pad2 /system/bin io.padtap.SelfTest" > pad2.log 2>&1 &
 PADPID=$!
-sleep 9.5
+sleep 11
 adb exec-out screencap -p > shot9-zones.png
-sleep 2.6
+sleep 0.5
+adb shell input tap 339 338
+sleep 1.3
+adb exec-out screencap -p > shot9b-stick-editor.png
+sleep 3.0
 adb exec-out screencap -p > shot10-btn-editor.png
 wait $PADPID
 cat pad2.log
@@ -91,7 +95,7 @@ sw_up = any(e[0] == 'ACTION_MOVE' and near(e[1], 0.75*W) and e[2] < 0.75*H - 0.1
 turbo = sum(1 for e in ev if e[0] == 'ACTION_DOWN' and near(e[1], 0.5*W) and near(e[2], 0.3*H))
 res = [('joystick touch-down at center', joy_down), ('joystick moves to circle edge', joy_move),
        ('swipe touch-down at center', sw_down), ('swipe goes beyond radius (unlimited)', sw_up),
-       ('turbo repeats (%d taps in 0.55s)' % turbo, 4 <= turbo <= 7)]
+       ('turbo repeats (%d taps in ~0.8s hold)' % turbo, 6 <= turbo <= 10)]
 for name, r in res: print(('E2E2 PASS ' if r else 'E2E2 FAIL ') + name)
 print('E2E2 ' + ('ALL PASS' if all(r for _, r in res) else 'SOME FAIL'))
 PY

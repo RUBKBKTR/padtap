@@ -93,7 +93,7 @@ public final class SelfTest {
         emit(u, 1, 0x13b, 1);
         emit(u, 1, 0x13b, 0);
         emit(u, 1, 0x13a, 0);
-        Thread.sleep(2500); // screenshot: zones
+        Thread.sleep(4500); // screenshots: zones, stick editor
         System.out.println("T select-A");
         emit(u, 1, 0x130, 1);
         emit(u, 1, 0x130, 0);

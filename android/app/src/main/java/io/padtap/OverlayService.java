@@ -383,7 +383,7 @@ public class OverlayService extends Service implements Pad.View {
                         ring(c, x, y, R, col, k.mode == Model.S_SWIPE);
                     }
                     fill.setColor(sel ? 0xCCFFDD66 : (col & 0x00FFFFFF) | 0x99000000);
-                    c.drawCircle(x, y, 14 * dp, fill);
+                    c.drawCircle(x, y, (unlimited ? 18 : 15) * dp, fill);
                     c.drawText((s == 0 ? "L" : "R") + (unlimited ? "∞" : ""), x, y + label.getTextSize() * 0.35f, label);
                 }
                 // position buttons
