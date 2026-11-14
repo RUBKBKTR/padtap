@@ -1,0 +1,7 @@
+--------- beginning of main
+11-14 05:01:17.938  3253  3253 I PadTapProbe: key KEYCODE_BUTTON_X
+11-14 05:01:18.736  3253  3253 I PadTapProbe: touch ACTION_DOWN n=1 x=160 y=320
+11-14 05:01:18.870  3253  3253 I PadTapProbe: touch ACTION_MOVE n=1 x=220 y=350
+11-14 05:01:18.970  3253  3253 I PadTapProbe: touch ACTION_POINTER_DOWN(1) n=2 x=220 y=350
+11-14 05:01:19.092  3253  3253 I PadTapProbe: touch ACTION_POINTER_UP(1) n=2 x=220 y=350
+11-14 05:01:19.217  3253  3253 I PadTapProbe: touch ACTION_UP n=1 x=220 y=350

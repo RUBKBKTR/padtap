@@ -1,0 +1,29 @@
+uid=2000
+PASS uinput create (45)
+devices: 
+info: uid=2000 inj=ok
+PASS injector init
+PASS no service error
+devices: PadTap Test Pad
+PASS virtual pad detected
+PASS A press seen
+PASS A release seen
+PASS left stick right (1.0)
+PASS left stick center (1.5258789E-5)
+PASS right stick up (-1.0)
+PASS hat left -> dpad left
+PASS hat released
+MARK grabbed-B
+PASS B release seen
+MARK ungrabbed-X
+info after inject: uid=2000 inj=ok
+PASS injection without exceptions
+devices: 
+PASS virtual pad removal seen
+SELFTEST fails=0
+--------- beginning of main
+11-14 05:01:10.282  3784  3784 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+11-14 05:01:10.290  3784  3784 I AndroidRuntime: Using default boot image
+11-14 05:01:10.290  3784  3784 I AndroidRuntime: Leaving lock profiling enabled
+11-14 05:01:10.479  3784  3784 D AndroidRuntime: Calling main entry io.padtap.SelfTest
+11-14 05:01:21.656  3784  3784 I AndroidRuntime: VM exiting with result code 0.

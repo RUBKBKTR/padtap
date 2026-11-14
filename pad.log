@@ -1,0 +1,8 @@
+pad fd=45
+T A-hold+drag
+T setup-on
+T select-X
+T place-X
+T setup-off
+T tap-X
+T done

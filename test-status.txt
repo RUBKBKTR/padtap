@@ -1,0 +1,8 @@
+PASS service self-test
+PASS injected touch down reached app
+PASS injected 2nd finger reached app
+PASS injected touch up reached app
+PASS injected drag reached app
+PASS grabbed B hidden from Android
+PASS ungrabbed X visible to Android
+overall fail=0

@@ -1,0 +1,110 @@
++ adb install -r padtap.apk
+Performing Streamed Install
+Success
+++ adb shell pm path io.padtap
+++ sed s/package://
+++ head -1
+++ tr -d '\r'
++ APK=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/base.apk
+++ dirname /data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/base.apk
++ LIB=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/lib/x86_64/libpadtap.so
+++ tail -1
+++ tr -d '\r'
+++ adb shell wm size
+++ sed 's/.*: //'
++ SIZE=320x640
++ W=320
++ H=640
++ echo 'apk=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/base.apk lib=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/lib/x86_64/libpadtap.so size=320x640'
+apk=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/base.apk lib=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/lib/x86_64/libpadtap.so size=320x640
++ adb shell ls -l /data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/lib/x86_64/libpadtap.so
+-rwxr-xr-x 1 system system 8064 1981-01-01 01:01 /data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/lib/x86_64/libpadtap.so
++ adb shell id
+uid=2000(shell) gid=2000(shell) groups=2000(shell),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:shell:s0
++ adb logcat -c
++ adb shell am start -W -n io.padtap/.ProbeActivity
+Starting: Intent { cmp=io.padtap/.ProbeActivity }
+Status: ok
+LaunchState: COLD
+Activity: io.padtap/.ProbeActivity
+TotalTime: 1724
+WaitTime: 1737
+Complete
++ sleep 3
++ adb shell 'CLASSPATH=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/base.apk app_process -Dpadtap.lib=/data/app/~~TGWMc8r95DCsf_lM51LWuw==/io.padtap-YOY1iM1AQ6nyCM_hkbtUTw==/lib/x86_64/libpadtap.so -Dpadtap.tap=160,320 /system/bin io.padtap.SelfTest'
++ tee selftest.log
+uid=2000
+PASS uinput create (45)
+devices: 
+info: uid=2000 inj=ok
+PASS injector init
+PASS no service error
+devices: PadTap Test Pad
+PASS virtual pad detected
+PASS A press seen
+PASS A release seen
+PASS left stick right (1.0)
+PASS left stick center (1.5258789E-5)
+PASS right stick up (-1.0)
+PASS hat left -> dpad left
+PASS hat released
+MARK grabbed-B
+PASS B release seen
+MARK ungrabbed-X
+info after inject: uid=2000 inj=ok
+PASS injection without exceptions
+devices: 
+PASS virtual pad removal seen
+SELFTEST fails=0
++ sleep 1
++ adb logcat -d -s PadTapProbe:I
++ adb logcat -d -s 'PadTapSvc:*' 'PadTapInj:*' 'AndroidRuntime:*'
++ cat probe.log
+--------- beginning of main
+11-14 05:01:17.938  3253  3253 I PadTapProbe: key KEYCODE_BUTTON_X
+11-14 05:01:18.736  3253  3253 I PadTapProbe: touch ACTION_DOWN n=1 x=160 y=320
+11-14 05:01:18.870  3253  3253 I PadTapProbe: touch ACTION_MOVE n=1 x=220 y=350
+11-14 05:01:18.970  3253  3253 I PadTapProbe: touch ACTION_POINTER_DOWN(1) n=2 x=220 y=350
+11-14 05:01:19.092  3253  3253 I PadTapProbe: touch ACTION_POINTER_UP(1) n=2 x=220 y=350
+11-14 05:01:19.217  3253  3253 I PadTapProbe: touch ACTION_UP n=1 x=220 y=350
++ fail=0
++ chk 'grep -q '\''SELFTEST fails=0'\'' selftest.log' 'service self-test'
++ eval 'grep -q '\''SELFTEST fails=0'\'' selftest.log'
+++ grep -q 'SELFTEST fails=0' selftest.log
++ tee test-status.txt
++ echo 'PASS service self-test'
++ chk 'grep -q '\''touch ACTION_DOWN'\'' probe.log' 'injected touch down reached app'
+PASS service self-test
++ eval 'grep -q '\''touch ACTION_DOWN'\'' probe.log'
+++ grep -q 'touch ACTION_DOWN' probe.log
++ echo 'PASS injected touch down reached app'
++ chk 'grep -q '\''ACTION_POINTER_DOWN'\'' probe.log' 'injected 2nd finger reached app'
++ eval 'grep -q '\''ACTION_POINTER_DOWN'\'' probe.log'
+++ grep -q ACTION_POINTER_DOWN probe.log
+PASS injected touch down reached app
++ echo 'PASS injected 2nd finger reached app'
+PASS injected 2nd finger reached app
++ chk 'grep -q '\''touch ACTION_UP'\'' probe.log' 'injected touch up reached app'
++ eval 'grep -q '\''touch ACTION_UP'\'' probe.log'
+++ grep -q 'touch ACTION_UP' probe.log
++ echo 'PASS injected touch up reached app'
+PASS injected touch up reached app
++ chk 'grep -q '\''ACTION_MOVE'\'' probe.log' 'injected drag reached app'
++ eval 'grep -q '\''ACTION_MOVE'\'' probe.log'
+++ grep -q ACTION_MOVE probe.log
++ echo 'PASS injected drag reached app'
++ chk '! grep -q '\''KEYCODE_BUTTON_B'\'' probe.log' 'grabbed B hidden from Android'
++ eval '! grep -q '\''KEYCODE_BUTTON_B'\'' probe.log'
+++ grep -q KEYCODE_BUTTON_B probe.log
+PASS injected drag reached app
++ echo 'PASS grabbed B hidden from Android'
++ chk 'grep -q '\''KEYCODE_BUTTON_X'\'' probe.log' 'ungrabbed X visible to Android'
++ eval 'grep -q '\''KEYCODE_BUTTON_X'\'' probe.log'
+++ grep -q KEYCODE_BUTTON_X probe.log
+PASS grabbed B hidden from Android
++ echo 'PASS ungrabbed X visible to Android'
+PASS ungrabbed X visible to Android
++ tee -a test-status.txt
++ echo 'overall fail=0'
+overall fail=0
++ exit 0

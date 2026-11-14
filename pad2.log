@@ -1,0 +1,8 @@
+pad2 fd=45
+T L-joy
+T R-swipe
+T A-turbo
+T setup-on
+T select-A
+T setup-off
+T done

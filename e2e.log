@@ -1,0 +1,283 @@
++ adb install -r shizuku.apk
+Performing Streamed Install
+Success
++ adb install -r padtap.apk
+Performing Streamed Install
+Success
+++ adb shell pm path moe.shizuku.privileged.api
+++ head -1
+++ tr -d '\r'
+++ sed s/package://
++ SZ=/data/app/~~Ttz9rh9O6n1UrWijqiDfOQ==/moe.shizuku.privileged.api-BwIHCuXnPIToRAV81h2vxQ==/base.apk
+++ dirname /data/app/~~Ttz9rh9O6n1UrWijqiDfOQ==/moe.shizuku.privileged.api-BwIHCuXnPIToRAV81h2vxQ==/base.apk
++ adb shell /data/app/~~Ttz9rh9O6n1UrWijqiDfOQ==/moe.shizuku.privileged.api-BwIHCuXnPIToRAV81h2vxQ==/lib/x86_64/libshizuku.so
+info: starter begin
+info: killing old process...
+info: apk path is /data/app/~~Ttz9rh9O6n1UrWijqiDfOQ==/moe.shizuku.privileged.api-BwIHCuXnPIToRAV81h2vxQ==/base.apk
+info: starting server...
+info: shizuku_server pid is 3331
+info: shizuku_starter exit with 0
++ sleep 3
++ adb shell appops set io.padtap SYSTEM_ALERT_WINDOW allow
++ adb shell pm grant io.padtap android.permission.POST_NOTIFICATIONS
++ adb shell wm size 720x1440
++ adb shell wm density 300
++ sleep 2
+++ tail -1
+++ tr -d '\r'
+++ adb shell wm size
+++ sed 's/.*: //'
++ SIZE=720x1440
++ W=720
++ H=1440
++ adb shell am start -W -n io.padtap/.MainActivity
+Starting: Intent { cmp=io.padtap/.MainActivity }
+Status: ok
+LaunchState: WARM
+Activity: io.padtap/.MainActivity
+TotalTime: 1244
+WaitTime: 1255
+Complete
++ sleep 3
++ adb exec-out screencap -p
++ python3 android/ci/ui.py 許可する --optional
+tap "許可する" at 360,476
++ sleep 3
++ adb exec-out screencap -p
++ python3 android/ci/ui.py '^(Allow all the time|常に許可)$' --optional
+tap "Allow all the time" at 360,793
++ sleep 3
++ adb exec-out screencap -p
++ python3 android/ci/ui.py 開始する
+tap "開始する" at 360,684
++ sleep 4
++ adb exec-out screencap -p
++ adb logcat -c
++ adb shell am start -W -n io.padtap/.ProbeActivity
+Starting: Intent { cmp=io.padtap/.ProbeActivity }
+Status: ok
+LaunchState: WARM
+Activity: io.padtap/.ProbeActivity
+TotalTime: 51
+WaitTime: 67
+Complete
++ sleep 2
+++ adb shell pm path io.padtap
+++ head -1
+++ sed s/package://
+++ tr -d '\r'
++ APK=/data/app/~~Hkqb6kmGdA32qwAg7bnaEg==/io.padtap-QOH38dE2-5JTio6HdcI7Xw==/base.apk
+++ dirname /data/app/~~Hkqb6kmGdA32qwAg7bnaEg==/io.padtap-QOH38dE2-5JTio6HdcI7Xw==/base.apk
++ LIB=/data/app/~~Hkqb6kmGdA32qwAg7bnaEg==/io.padtap-QOH38dE2-5JTio6HdcI7Xw==/lib/x86_64/libpadtap.so
++ PADPID=4111
++ sleep 11
++ adb shell 'CLASSPATH=/data/app/~~Hkqb6kmGdA32qwAg7bnaEg==/io.padtap-QOH38dE2-5JTio6HdcI7Xw==/base.apk app_process -Dpadtap.lib=/data/app/~~Hkqb6kmGdA32qwAg7bnaEg==/io.padtap-QOH38dE2-5JTio6HdcI7Xw==/lib/x86_64/libpadtap.so -Dpadtap.mode=pad /system/bin io.padtap.SelfTest'
++ adb exec-out screencap -p
++ wait 4111
++ cat pad.log
+pad fd=45
+T A-hold+drag
+T setup-on
+T select-X
+T place-X
+T setup-off
+T tap-X
+T done
++ sleep 1
++ adb exec-out screencap -p
++ adb shell input tap 690 576
++ sleep 2
++ adb exec-out screencap -p
++ python3 android/ci/ui.py ボタン配置を設定 --optional
+NOT FOUND: ボタン配置を設定
+[]
++ sleep 2
++ adb exec-out screencap -p
++ adb logcat -d -s PadTapProbe:I
++ adb logcat -d -s AndroidRuntime:E 'PadTapSvc:*' 'PadTapInj:*'
++ cat e2e-probe.log
+--------- beginning of main
+11-14 05:02:51.129  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=288 y=720
+11-14 05:02:51.379  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=302 y=720
+11-14 05:02:51.395  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=321 y=720
+11-14 05:02:51.418  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=335 y=720
+11-14 05:02:51.430  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=347 y=720
+11-14 05:02:51.446  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=367 y=720
+11-14 05:02:51.462  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=381 y=720
+11-14 05:02:51.479  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=393 y=720
+11-14 05:02:51.496  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=409 y=720
+11-14 05:02:51.512  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=424 y=720
+11-14 05:02:51.530  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=439 y=720
+11-14 05:02:51.546  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=451 y=720
+11-14 05:02:51.563  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=465 y=720
+11-14 05:02:51.579  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=480 y=720
+11-14 05:02:51.595  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=492 y=720
+11-14 05:02:51.612  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=509 y=720
+11-14 05:02:51.796  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=525 y=720
+11-14 05:02:51.813  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=561 y=720
+11-14 05:02:51.830  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=582 y=720
+11-14 05:02:51.846  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=596 y=720
+11-14 05:02:51.863  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=611 y=720
+11-14 05:02:51.879  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=625 y=720
+11-14 05:02:51.896  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=639 y=720
+11-14 05:02:51.912  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=653 y=720
+11-14 05:02:51.929  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=669 y=720
+11-14 05:02:51.946  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=683 y=720
+11-14 05:02:51.962  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=696 y=720
+11-14 05:02:51.978  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=711 y=720
+11-14 05:02:51.995  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.012  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.028  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.046  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.062  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.081  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.097  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.112  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.128  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=721 y=720
+11-14 05:02:52.142  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=719 y=720
+11-14 05:02:52.377  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=719 y=720
+11-14 05:03:01.332  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=719 y=720
+11-14 05:03:01.729  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=719 y=720
+++ grep -c 'touch ACTION_DOWN' e2e-probe.log
++ n=2
++ echo 'E2E touch downs: 2'
+E2E touch downs: 2
++ grep -q 'touch ACTION_MOVE' e2e-probe.log
++ '[' 2 -ge 2 ']'
++ echo 'E2E PASS'
+E2E PASS
++ adb shell input tap 20 1410
++ sleep 1
++ adb shell am start -W -n io.padtap/.ProbeActivity
+Starting: Intent { cmp=io.padtap/.ProbeActivity }
+Status: ok
+LaunchState: WARM
+Activity: io.padtap/.ProbeActivity
+TotalTime: 30
+WaitTime: 35
+Complete
++ sleep 1
++ CFG='{"profiles":[{"name":"E2E","btns":{"304":{"t":0,"x":0.5,"y":0.3,"m":1,"i":100,"s":64},"307":{"t":0,"x":0.5,"y":0.45,"m":0,"s":96}},"sticks":[{"m":2,"cx":0.25,"cy":0.75,"r":0.15,"d":0.1},{"m":3,"cx":0.75,"cy":0.75,"r":0.15,"u":true,"d":0.1,"sp":1}]}]}'
+++ printf %s '{"profiles":[{"name":"E2E","btns":{"304":{"t":0,"x":0.5,"y":0.3,"m":1,"i":100,"s":64},"307":{"t":0,"x":0.5,"y":0.45,"m":0,"s":96}},"sticks":[{"m":2,"cx":0.25,"cy":0.75,"r":0.15,"d":0.1},{"m":3,"cx":0.75,"cy":0.75,"r":0.15,"u":true,"d":0.1,"sp":1}]}]}'
+++ base64 -w0
++ B64=eyJwcm9maWxlcyI6W3sibmFtZSI6IkUyRSIsImJ0bnMiOnsiMzA0Ijp7InQiOjAsIngiOjAuNSwieSI6MC4zLCJtIjoxLCJpIjoxMDAsInMiOjY0fSwiMzA3Ijp7InQiOjAsIngiOjAuNSwieSI6MC40NSwibSI6MCwicyI6OTZ9fSwic3RpY2tzIjpbeyJtIjoyLCJjeCI6MC4yNSwiY3kiOjAuNzUsInIiOjAuMTUsImQiOjAuMX0seyJtIjozLCJjeCI6MC43NSwiY3kiOjAuNzUsInIiOjAuMTUsInUiOnRydWUsImQiOjAuMSwic3AiOjF9XX1dfQ==
++ adb shell am broadcast -a io.padtap.IMPORT_CONFIG -n io.padtap/.ConfigReceiver --es b64 eyJwcm9maWxlcyI6W3sibmFtZSI6IkUyRSIsImJ0bnMiOnsiMzA0Ijp7InQiOjAsIngiOjAuNSwieSI6MC4zLCJtIjoxLCJpIjoxMDAsInMiOjY0fSwiMzA3Ijp7InQiOjAsIngiOjAuNSwieSI6MC40NSwibSI6MCwicyI6OTZ9fSwic3RpY2tzIjpbeyJtIjoyLCJjeCI6MC4yNSwiY3kiOjAuNzUsInIiOjAuMTUsImQiOjAuMX0seyJtIjozLCJjeCI6MC43NSwiY3kiOjAuNzUsInIiOjAuMTUsInUiOnRydWUsImQiOjAuMSwic3AiOjF9XX1dfQ==
+Broadcasting: Intent { act=io.padtap.IMPORT_CONFIG flg=0x400000 cmp=io.padtap/.ConfigReceiver (has extras) }
+Broadcast completed: result=0
++ sleep 1
++ adb logcat -c
++ PADPID=4284
++ sleep 11
++ adb shell 'CLASSPATH=/data/app/~~Hkqb6kmGdA32qwAg7bnaEg==/io.padtap-QOH38dE2-5JTio6HdcI7Xw==/base.apk app_process -Dpadtap.lib=/data/app/~~Hkqb6kmGdA32qwAg7bnaEg==/io.padtap-QOH38dE2-5JTio6HdcI7Xw==/lib/x86_64/libpadtap.so -Dpadtap.mode=pad2 /system/bin io.padtap.SelfTest'
++ adb exec-out screencap -p
++ sleep 0.5
++ adb shell input tap 339 338
++ sleep 1.3
++ adb exec-out screencap -p
++ sleep 3.0
++ adb exec-out screencap -p
++ wait 4284
++ cat pad2.log
+pad2 fd=45
+T L-joy
+T R-swipe
+T A-turbo
+T setup-on
+T select-A
+T setup-off
+T done
++ adb logcat -d -s PadTapProbe:I
++ cat e2e2-probe.log
+--------- beginning of main
+11-14 05:03:44.146  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=180 y=1080
+11-14 05:03:44.175  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=331 y=1080
+11-14 05:03:44.192  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=288 y=1080
+11-14 05:03:44.993  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=288 y=1080
+11-14 05:03:45.743  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=540 y=1080
+11-14 05:03:45.778  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=1054
+11-14 05:03:45.792  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=1036
+11-14 05:03:45.809  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=1017
+11-14 05:03:45.825  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=999
+11-14 05:03:45.842  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=982
+11-14 05:03:45.858  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=963
+11-14 05:03:45.875  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=945
+11-14 05:03:45.892  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=927
+11-14 05:03:45.909  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=909
+11-14 05:03:45.925  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=891
+11-14 05:03:45.942  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=873
+11-14 05:03:45.959  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=855
+11-14 05:03:45.975  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=837
+11-14 05:03:45.992  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=819
+11-14 05:03:46.008  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=801
+11-14 05:03:46.025  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=783
+11-14 05:03:46.042  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=765
+11-14 05:03:46.059  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=747
+11-14 05:03:46.075  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=729
+11-14 05:03:46.092  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=711
+11-14 05:03:46.108  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=693
+11-14 05:03:46.125  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=675
+11-14 05:03:46.142  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=657
+11-14 05:03:46.158  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=639
+11-14 05:03:46.175  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=621
+11-14 05:03:46.192  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=603
+11-14 05:03:46.208  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=585
+11-14 05:03:46.225  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=567
+11-14 05:03:46.242  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=549
+11-14 05:03:46.259  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=531
+11-14 05:03:46.275  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=513
+11-14 05:03:46.292  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=495
+11-14 05:03:46.309  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=477
+11-14 05:03:46.325  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=459
+11-14 05:03:46.342  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=441
+11-14 05:03:46.359  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=424
+11-14 05:03:46.375  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=406
+11-14 05:03:46.392  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=387
+11-14 05:03:46.408  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=369
+11-14 05:03:46.425  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=351
+11-14 05:03:46.442  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=333
+11-14 05:03:46.459  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=315
+11-14 05:03:46.475  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=297
+11-14 05:03:46.492  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=279
+11-14 05:03:46.509  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=261
+11-14 05:03:46.525  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=243
+11-14 05:03:46.542  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=225
+11-14 05:03:46.559  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=207
+11-14 05:03:46.575  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=189
+11-14 05:03:46.592  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=171
+11-14 05:03:46.609  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=153
+11-14 05:03:46.625  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=135
+11-14 05:03:46.642  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=117
+11-14 05:03:46.658  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=99
+11-14 05:03:46.675  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=81
+11-14 05:03:46.692  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=64
+11-14 05:03:46.709  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=45
+11-14 05:03:46.725  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=27
+11-14 05:03:46.742  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=9
+11-14 05:03:46.758  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=-8
+11-14 05:03:46.775  3427  3427 I PadTapProbe: touch ACTION_MOVE n=1 x=540 y=0
+11-14 05:03:46.795  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=540 y=0
+11-14 05:03:47.542  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:47.595  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
+11-14 05:03:47.645  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:47.695  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
+11-14 05:03:47.745  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:47.794  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
+11-14 05:03:47.846  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:47.895  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
+11-14 05:03:47.945  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:47.995  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
+11-14 05:03:48.045  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:48.095  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
+11-14 05:03:48.145  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:48.196  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
+11-14 05:03:48.245  3427  3427 I PadTapProbe: touch ACTION_DOWN n=1 x=360 y=432
+11-14 05:03:48.296  3427  3427 I PadTapProbe: touch ACTION_UP n=1 x=360 y=432
++ python3 -
++ tee -a e2e.log
+E2E2 PASS joystick touch-down at center
+E2E2 PASS joystick moves to circle edge
+E2E2 PASS joystick settles at edge (288)
+E2E2 PASS swipe touch-down at center
+E2E2 PASS swipe goes beyond radius (unlimited)
+E2E2 PASS turbo repeats (8 taps in ~0.8s hold)
+E2E2 ALL PASS
